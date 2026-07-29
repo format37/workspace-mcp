@@ -170,7 +170,10 @@ Then filter for the `#claude-` marker.
   Google's exclusive bound — do not add your own slack.
 - Reschedule: `manage_event(action="update", event_id=..., start_time=...,
   end_time=...)`. Moving or deleting before fire time moves or cancels the
-  phone notification.
+  phone notification — **verified on a real device**, including the case where
+  the phone had already synced the event. The one gap: a phone that is offline
+  between your change and the original fire time can still act on its stale
+  copy, so a reschedule made minutes ahead is not a guarantee.
 - Complete a task: `manage_task(action="update", task_id=..., status="completed")`.
 - Fired one-shot reminders can be deleted once the user is done with them.
 - `manage_event` returns a formatted string, not JSON — read the event id out
