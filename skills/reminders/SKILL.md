@@ -152,6 +152,10 @@ Then filter for the `#claude-` marker.
 
 - `get_events` with no `time_min` defaults to *now* — pass it explicitly when
   the user asks about "today", or you will miss everything earlier today.
+- **`list_tasks` truncates `notes`** to a first line plus `...`. To read a
+  task's full context block you must call `get_task` on it. So: `list_tasks` to
+  find the item, `get_task` to actually read it. `get_events` does not truncate
+  descriptions the same way.
 - To see tasks completed in Google's own apps you need **both**
   `show_completed=True` and `show_hidden=True`.
 - `list_tasks(due_max=...)` already adds a day internally to compensate for
