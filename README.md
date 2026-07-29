@@ -173,10 +173,11 @@ that a date-only start time silently becomes an all-day event. Without the
 conventions layer, "remind me about the dentist tomorrow" plausibly becomes a
 silent task and the system fails at the exact moment you were relying on it.
 
-**Claude Code** — symlink the skill and set the two local values at the top:
+**Claude Code** — install the skill with your account email and timezone
+substituted in (re-run after a `git pull`):
 
 ```bash
-ln -s ~/workspace-mcp/skills/reminders ~/.claude/skills/reminders
+./skills/install.sh you@gmail.com Europe/Berlin
 ```
 
 **claude.ai / mobile** — create a Project and paste this into its instructions:
@@ -335,6 +336,7 @@ caddy/site-block.md       the site block, verification, and the failure modes
 examples/cron-reminder.sh a reminder with no model in the loop
 examples/deadman-check.sh the weekly watchdog
 skills/reminders/SKILL.md the conventions layer — read this one
+skills/install.sh         installs it with your email + timezone filled in
 ```
 
 Licensed MIT. The upstream server is MIT too, and is not vendored here.
