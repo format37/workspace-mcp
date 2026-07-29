@@ -237,6 +237,30 @@ workspace-cli call manage_event action=create \
   'reminders=[{"method":"popup","minutes":0}]'
 ```
 
+### Cron entries
+
+```cron
+# PATH must be set: cron's default does not include ~/.local/bin, where uv
+# installs workspace-cli, and the scripts would die on "command not found"
+# before ever reaching their alert path.
+PATH=/home/USER/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Weekly watchdog
+0 8 * * 1  /home/USER/workspace-mcp/examples/deadman-check.sh >> /home/USER/workspace-mcp-deadman.log 2>&1
+
+# Weekly backup of the credential volume (live refresh tokens — 0600, outside the clone)
+0 3 * * 0  umask 077; mkdir -p /home/USER/backups && sudo docker run --rm -v workspace-mcp_store_creds:/v -v /home/USER/backups:/b alpine tar czf /b/store_creds-$(date +\%F).tgz -C /v . && sudo chown USER:USER /home/USER/backups/store_creds-*.tgz && chmod 600 /home/USER/backups/store_creds-*.tgz
+```
+
+`cron-reminder.sh` is deliberately **not** in that list. It is a template for a
+recurring reminder you actually want; installing it as-is would put a daily
+"Daily stand-up" event on your calendar that you never asked for. Copy it, edit
+the summary and the time, then add your own cron line.
+
+Both scripts refuse to run if `.env` is missing, and say so loudly, because
+that is the one failure their own Telegram alert cannot report — the bot token
+lives in the file that is not there.
+
 ### workspace-cli on a headless box
 
 First authorisation opens a browser and waits on a random loopback port, which
@@ -254,7 +278,10 @@ tar czf - -C ~ .workspace-mcp | ssh vps '
 ```
 
 Both halves are required: the Fernet key is a random file, not derived from
-anything, so the cache is unreadable without it. The `rm` is required unless the
+anything, so the cache is unreadable without it. And if you ever test the
+failure path by renaming `cli-tokens/`, move it **outside** `~/.workspace-mcp`:
+a failed run recreates the directory, so moving the backup back nests it one
+level deeper instead of restoring it. The `rm` is required unless the
 absolute home path is identical on both machines — each collection writes a
 sidecar containing its absolute directory, and a mismatched one makes every read
 fail with a path-security error.
