@@ -1,0 +1,31 @@
+# --- Secrets: never commit ---------------------------------------------------
+# .env holds the Google OAuth client secret, the FastMCP JWT signing key and the
+# Telegram bot token. It is written directly on the target machine.
+.env
+.env.*
+!.env.example
+
+# Google credential store + OAuth-proxy state. If anyone ever bind-mounts it
+# instead of using the named volume, these files are LIVE REFRESH TOKENS.
+store_creds/
+.credentials/
+client_secret*.json
+
+# Volume backups — same secrecy class as .env (they contain a live refresh token).
+*.tgz
+*.tar.gz
+backup*
+backups/
+
+# --- Private planning material (see tech-spec §6.1) ---------------------------
+# These describe real infrastructure (VPS, hostnames, a sibling service's auth
+# design) and deliberately stay out of the public repo.
+docs/
+workspace-mcp-reference.md
+*.local.md
+
+# --- Noise --------------------------------------------------------------------
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
