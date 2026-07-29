@@ -188,9 +188,7 @@ apart:
 `git pull` to re-apply your values.
 
 **claude.ai** — *Customize → Skills → "+" → Create skill*, upload the zip.
-Needs code execution enabled, and a Pro plan or above. A skill beats pasting
-the same text into a Project's instructions: it is available in every
-conversation including the mobile app, not only inside that one Project.
+Needs code execution enabled, and a Pro plan or above.
 
 The `description` in the frontmatter is the load-bearing part — it is what
 decides whether the skill gets pulled in at all, so its trigger phrases must
@@ -198,7 +196,14 @@ match the words you actually use, **in the language you actually type**. That
 is not a hypothetical: the first real request failed because the triggers were
 English-only and the request was Russian.
 
-**claude.ai / mobile** — create a Project and paste this into its instructions:
+### Or: a Project, if you cannot use skills
+
+A skill and a Project's instructions do the same job here, so pick **one** —
+running both just duplicates the text. The skill is the better default: it
+applies in every conversation including the mobile app, not only inside one
+Project. Use a Project instead if skills are unavailable on your plan or you
+want the rules scoped to one workspace. Paste this into its **Instructions**
+field (not the description, which is only a label):
 
 > **Routing rule, before anything else.** If a message implies I want to be
 > interrupted at a moment in time, create a **timed Google Calendar event** with
@@ -222,8 +227,7 @@ English-only and the request was Russian.
 > is the notification moment. Both keys are required in each reminder entry and
 > `minutes` must be a number — malformed entries are dropped without an error,
 > leaving an event that never buzzes, and nothing you can read back will reveal
-> it. Default duration 15 minutes. Leave at
-> least 5 minutes of lead time.
+> it. Default duration 15 minutes, and at least 5 minutes of lead time.
 >
 > Put the reasoning in the event description, starting with the line
 > `#claude-reminder`, so we can find and clean up agent-created items later.
