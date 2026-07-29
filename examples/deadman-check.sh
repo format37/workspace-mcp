@@ -65,7 +65,19 @@ fi
 # signature and derives the account from the token. GOOGLE_ACCOUNT_EMAIL is
 # still needed below, for the stray-account check.
 if ! calendars=$(timeout 120 workspace-cli call list_calendars 2>&1); then
-    problems+=("list_calendars FAILED — Google credentials are probably dead, re-auth needed. Output: $(printf '%s' "$calendars" | tail -3 | tr '\n' ' ')")
+    # Distinguish the two failures that need different responses, and NEVER
+    # forward the raw output. When credentials are unusable the CLI prints a
+    # live OAuth authorization URL and then blocks on a loopback callback; that
+    # URL has no business being pushed into a chat, and the surrounding log
+    # noise buries the actual signal. Both learned by running this for real.
+    case "$calendars" in
+        *"OAuth callback server started"*|*"authorization URL"*|*"Authorization URL"*)
+            problems+=("RE-AUTHENTICATION REQUIRED — the cached workspace-cli credentials can no longer be refreshed, so cron reminders are silently dead. Fix: re-run the consent on a desktop against \$WORKSPACE_MCP_URL and copy ~/.workspace-mcp across (see README).") ;;
+        *)
+            # Sanitised: collapse whitespace, drop anything URL-shaped, cap length.
+            detail=$(printf '%s' "$calendars" | tr '\n' ' ' | sed -E 's#[a-z]+://[^ ]*#<url-redacted>#g' | tr -s ' ' | tail -c 300)
+            problems+=("list_calendars FAILED (not an auth prompt) — check the server. Tail: ${detail}") ;;
+    esac
 fi
 
 # --- 3. accounts other than yours -------------------------------------------
