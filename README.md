@@ -321,6 +321,14 @@ files. Some things worth knowing before you deploy this:
   file permissions and a non-root container user. Fine for a single-operator
   box; know that it is true.
 
+- **Reminders are not private to your phone.** They are ordinary events on your
+  primary calendar, so every client connected to that Google account sees them
+  — the desktop browser pops them up, and meeting integrations like Zoom will
+  announce a reminder in advance as though it were a meeting. The context block
+  is readable by all of them. Reference sensitive detail rather than restating
+  it, or move agent events to a dedicated secondary calendar that those
+  integrations do not watch.
+
 - **There is no rate limiting**, and a few endpoints (`/health`, `/`, both
   well-known documents, `/attachments/{id}`, and the OAuth endpoints) answer
   without a bearer token. Only `/mcp` enforces auth.

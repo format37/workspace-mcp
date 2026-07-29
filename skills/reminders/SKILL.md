@@ -83,8 +83,16 @@ Rules that are load-bearing:
   own synced copy; sync is usually seconds, but there is no guarantee.
 - `send_updates="none"` — the tool's effective default is `"all"`. Harmless
   with no attendees, but do not leave it to chance.
-- The notification shows title and time. Context is read by tapping through, so
-  make `summary` self-sufficient (≤ ~60 chars, actionable, starts with a verb).
+- The notification shows **title and time** (confirmed on a real device).
+  Context is read by tapping through, so make `summary` self-sufficient
+  (≤ ~60 chars, actionable, starts with a verb).
+- **The event is not private to the phone.** It lands on the primary calendar,
+  so every client connected to that Google account sees it — the desktop
+  browser pops it up too, and meeting integrations such as Zoom announce it in
+  advance as if it were a meeting. Keep that in mind when writing the context
+  block: it is readable by anything with calendar access, so do not put
+  genuinely sensitive detail in there. Reference it instead ("see the lease
+  thread") when it is private.
 
 ### Recurring
 
