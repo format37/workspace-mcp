@@ -61,8 +61,10 @@ fi
 #
 # The 120 s leash matters: with unusable credentials workspace-cli waits 300 s
 # for a browser callback that can never arrive on a headless box.
-if ! calendars=$(timeout 120 workspace-cli call list_calendars \
-                    "user_google_email=${GOOGLE_ACCOUNT_EMAIL}" 2>&1); then
+# No account argument: OAuth 2.1 mode removes user_google_email from the tool
+# signature and derives the account from the token. GOOGLE_ACCOUNT_EMAIL is
+# still needed below, for the stray-account check.
+if ! calendars=$(timeout 120 workspace-cli call list_calendars 2>&1); then
     problems+=("list_calendars FAILED — Google credentials are probably dead, re-auth needed. Output: $(printf '%s' "$calendars" | tail -3 | tr '\n' ' ')")
 fi
 

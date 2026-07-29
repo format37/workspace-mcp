@@ -188,12 +188,14 @@ substituted in (re-run after a `git pull`):
 > cannot produce a notification, so a task is only for list items I explicitly
 > want tracked without being interrupted.
 >
-> Always pass `user_google_email=<your address>`, an explicit IANA `timezone`,
-> a `start_time` containing `T` (a date-only value becomes a silent all-day
+> There is no account parameter — the server derives it from the connection, so
+> never pass `user_google_email`. Do always pass an explicit IANA `timezone`, a
+> `start_time` containing `T` (a date-only value becomes a silent all-day
 > event), and `reminders=[{"method":"popup","minutes":0}]` so the event start
 > is the notification moment. Both keys are required in each reminder entry and
 > `minutes` must be a number — malformed entries are dropped without an error,
-> leaving an event that never buzzes. Default duration 15 minutes. Leave at
+> leaving an event that never buzzes, and nothing you can read back will reveal
+> it. Default duration 15 minutes. Leave at
 > least 5 minutes of lead time.
 >
 > Put the reasoning in the event description, starting with the line
@@ -229,7 +231,6 @@ plain-string fallback — which is how a nested `reminders` array survives:
 
 ```bash
 workspace-cli call manage_event action=create \
-  user_google_email=you@gmail.com \
   summary='Stand up' \
   start_time=2026-07-30T09:00:00 end_time=2026-07-30T09:15:00 \
   timezone=Europe/Berlin \

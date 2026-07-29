@@ -8,14 +8,16 @@ description: Create, query, reschedule and cancel reminders and todos that surfa
 Turn an intention into something that will physically interrupt the user at the
 right moment.
 
-**Set these two at install time** (they are the only local values):
+**Set these at install time** (they are the only local values):
 
 - `ACCOUNT` = `you@gmail.com`
 - `TZ` = `Europe/Berlin`
 
-Every tool call takes `user_google_email=<ACCOUNT>`. The server runs in
-multi-client OAuth mode where that parameter is required on every call and has
-no default — omitting it is an error, not a fallback.
+**There is no `user_google_email` parameter.** The server runs in OAuth 2.1
+mode, where it removes that parameter from every tool signature and resolves
+the account from the bearer token instead. Passing it is an error, not a
+harmless extra. `ACCOUNT` above is here only so you can answer "which account
+is this?" — never send it as an argument.
 
 ## Pick the primitive
 
@@ -42,7 +44,6 @@ a time never produces a timed Android notification. So:
 
 ```python
 manage_event(
-    user_google_email = ACCOUNT,
     action            = "create",
     calendar_id       = "primary",
     summary           = "Call the landlord",       # THIS is the notification text
@@ -70,7 +71,11 @@ Rules that are load-bearing:
 - **Every reminder entry needs both keys, and `minutes` must be a real
   integer.** `{"minutes": 10}` and `{"method":"popup","minutes":"10"}` are both
   dropped — silently, with only a server-side log line. The event is created
-  successfully with no reminder at all. When it matters, read the event back.
+  successfully with no reminder at all, and **you cannot detect this from
+  here**: `get_events` does not return reminder data even with
+  `detailed=True`. So there is no read-back that proves the buzz was attached —
+  get the payload right the first time, and if a user reports a missed
+  reminder, suspect a malformed entry before suspecting the phone.
 - Max 5 reminders; `minutes` between 0 and 40320 (28 days); methods are only
   `popup` and `email`.
 - Duration 15 minutes by convention, so the calendar stays readable.
@@ -95,7 +100,6 @@ Never create an unbounded series unless the user asked for one; prefer
 
 ```python
 manage_task(
-    user_google_email = ACCOUNT,
     action            = "create",
     task_list_id      = "@default",
     title             = "Review the OVH invoice",   # ≤ 1024 chars
@@ -138,11 +142,10 @@ Source: claude.ai conversation 2026-07-29
 ## Reading back, rescheduling, cleaning up
 
 ```python
-get_events(user_google_email=ACCOUNT, calendar_id="primary",
+get_events(calendar_id="primary",
            time_min="2026-07-29T00:00:00Z", time_max="2026-08-05T00:00:00Z")
 
-list_tasks(user_google_email=ACCOUNT, task_list_id="@default",
-           show_completed=False)
+list_tasks(task_list_id="@default", show_completed=False)
 ```
 
 Then filter for the `#claude-` marker.

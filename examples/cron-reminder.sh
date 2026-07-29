@@ -28,15 +28,16 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# .env carries WORKSPACE_MCP_URL, GOOGLE_ACCOUNT_EMAIL, REMINDER_TIMEZONE,
-# TELEGRAM_TOKEN, TELEGRAM_CHAT.
+# .env carries WORKSPACE_MCP_URL, REMINDER_TIMEZONE, TELEGRAM_TOKEN,
+# TELEGRAM_CHAT. Note there is deliberately no account argument below: in
+# OAuth 2.1 mode the server strips user_google_email from every tool signature
+# and resolves the account from the bearer token, so passing it is an error.
 set -a
 # shellcheck disable=SC1091
 . ./.env
 set +a
 
 : "${WORKSPACE_MCP_URL:?set WORKSPACE_MCP_URL in .env}"
-: "${GOOGLE_ACCOUNT_EMAIL:?set GOOGLE_ACCOUNT_EMAIL in .env}"
 : "${REMINDER_TIMEZONE:?set REMINDER_TIMEZONE in .env}"
 
 SUMMARY="Daily stand-up"
@@ -95,7 +96,6 @@ EOF
 # from mailing people.
 if ! timeout 120 workspace-cli call manage_event \
         action=create \
-        "user_google_email=${GOOGLE_ACCOUNT_EMAIL}" \
         calendar_id=primary \
         "summary=${SUMMARY}" \
         "start_time=${START}" \
