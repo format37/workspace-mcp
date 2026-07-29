@@ -26,7 +26,22 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
+cd "$REPO_DIR"
+
+# Fail loudly on a missing .env. This is the one failure the alert path below
+# cannot cover — the Telegram credentials live IN .env — so it has to be
+# unmissable in the cron mail instead. Without this guard `set -e` kills the
+# script on the bare `.` with a cryptic "./.env: No such file or directory",
+# before the alert function is even defined: a silent death in the one script
+# whose entire purpose is not dying silently.
+if [ ! -r "$REPO_DIR/.env" ]; then
+    echo "FATAL: $REPO_DIR/.env is missing or unreadable." >&2
+    echo "       Cron probably has the wrong path to this script; it must live" >&2
+    echo "       inside the repo checkout next to .env. No Telegram alert can be" >&2
+    echo "       sent, because the bot token lives in that same file." >&2
+    exit 1
+fi
 
 # .env carries WORKSPACE_MCP_URL, REMINDER_TIMEZONE, TELEGRAM_TOKEN,
 # TELEGRAM_CHAT. Note there is deliberately no account argument below: in
@@ -34,7 +49,7 @@ cd "$(dirname "$0")/.."
 # and resolves the account from the bearer token, so passing it is an error.
 set -a
 # shellcheck disable=SC1091
-. ./.env
+. "$REPO_DIR/.env"
 set +a
 
 : "${WORKSPACE_MCP_URL:?set WORKSPACE_MCP_URL in .env}"

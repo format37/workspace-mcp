@@ -26,11 +26,21 @@
 # ---------------------------------------------------------------------------
 set -uo pipefail          # deliberately NOT -e: every check must run, then report
 
-cd "$(dirname "$0")/.."
+REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
+cd "$REPO_DIR"
+
+# Same guard as cron-reminder.sh: the Telegram credentials live in .env, so a
+# missing .env is the one failure this watchdog cannot report through its own
+# alert path. Make it loud in cron mail instead of dying on a cryptic sourcing
+# error.
+if [ ! -r "$REPO_DIR/.env" ]; then
+    echo "FATAL: $REPO_DIR/.env is missing or unreadable — check the cron path." >&2
+    exit 1
+fi
 
 set -a
 # shellcheck disable=SC1091
-. ./.env
+. "$REPO_DIR/.env"
 set +a
 
 : "${WORKSPACE_MCP_URL:?set WORKSPACE_MCP_URL in .env}"
