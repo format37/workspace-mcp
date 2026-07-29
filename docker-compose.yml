@@ -5,9 +5,11 @@
 # the actual phone notification BEFORE any of it touches the VPS.
 #
 #   cp .env.example .env && chmod 600 .env
-#   # set WORKSPACE_EXTERNAL_URL=http://localhost:8020 in .env
 #   docker compose up -d
 #   curl -s http://localhost:8020/health
+#
+# WORKSPACE_EXTERNAL_URL is pinned to localhost below rather than read from
+# .env, so the same .env works for both this file and the VPS one.
 #
 # The Google client needs http://localhost:8020/oauth2callback in its authorised
 # redirect URIs. Plain-http OAuth is fine here: localhost is exempt from
@@ -23,6 +25,10 @@ services:
     container_name: mcp-workspace-local
     env_file: .env
     environment:
+      # Overrides whatever .env says, so one .env can serve both deployments
+      # and a production hostname left in it cannot silently break local OAuth.
+      # This value must match the second redirect URI on the Google client.
+      - WORKSPACE_EXTERNAL_URL=http://localhost:8020
       - PORT=8020
       - TZ=UTC
       - WORKSPACE_MCP_HOST=0.0.0.0
