@@ -173,12 +173,30 @@ that a date-only start time silently becomes an all-day event. Without the
 conventions layer, "remind me about the dentist tomorrow" plausibly becomes a
 silent task and the system fails at the exact moment you were relying on it.
 
-**Claude Code** — install the skill with your account email and timezone
-substituted in (re-run after a `git pull`):
+One skill, two targets — same source, so the terminal and the web cannot drift
+apart:
 
 ```bash
+# Claude Code: installs into ~/.claude/skills/
 ./skills/install.sh you@gmail.com Europe/Berlin
+
+# ...and an archive for claude.ai as well
+./skills/install.sh you@gmail.com Europe/Berlin --zip ~/reminders-skill.zip
 ```
+
+**Claude Code** picks the installed copy up automatically. Re-run after a
+`git pull` to re-apply your values.
+
+**claude.ai** — *Customize → Skills → "+" → Create skill*, upload the zip.
+Needs code execution enabled, and a Pro plan or above. A skill beats pasting
+the same text into a Project's instructions: it is available in every
+conversation including the mobile app, not only inside that one Project.
+
+The `description` in the frontmatter is the load-bearing part — it is what
+decides whether the skill gets pulled in at all, so its trigger phrases must
+match the words you actually use, **in the language you actually type**. That
+is not a hypothetical: the first real request failed because the triggers were
+English-only and the request was Russian.
 
 **claude.ai / mobile** — create a Project and paste this into its instructions:
 
