@@ -14,9 +14,9 @@
 #   2. list_calendars   — the ONLY check that exercises the full path: MCP
 #                         auth -> stored Google refresh token -> Google API.
 #                         /health passes happily with dead credentials.
-#   3. stray accounts   — one credential file per authorised Google account.
-#                         Anything but yours means somebody else completed a
-#                         consent flow against this endpoint.
+#   3. stray accounts   — the container logs name the authenticated Google
+#                         account on every tool call. Any email but yours means
+#                         somebody else completed a consent flow here.
 #   4. disk growth      — client registrations are persisted without a TTL, so
 #                         anonymous registration spam accumulates.
 #
@@ -37,7 +37,7 @@ set +a
 : "${GOOGLE_ACCOUNT_EMAIL:?set GOOGLE_ACCOUNT_EMAIL in .env}"
 
 CONTAINER=mcp-workspace
-CREDS_DIR=/app/store_creds/google
+CREDS_DIR=/app/store_creds/google   # kept for reference; see check 3 for why it is not used
 STATE_DIR=/app/store_creds
 MAX_STATE_MB=200
 
@@ -85,15 +85,34 @@ fi
 # a stranger who finds the URL can consent with THEIR OWN Google account and
 # use the tools against their own data. That is not a path into your calendar,
 # but it burns unverified-app grant slots, attributes API traffic to your Google
-# Cloud project, and leaves credential files behind. It is also what a
-# successful consent-phishing attempt against you would look like.
-if creds=$(sudo docker exec "$CONTAINER" sh -c "ls -1 ${CREDS_DIR} 2>/dev/null"); then
-    stray=$(printf '%s\n' "$creds" | grep -v -F "$GOOGLE_ACCOUNT_EMAIL" | grep -v '^$' || true)
+# Cloud project, and adds log noise. It is also what a successful
+# consent-phishing attempt against you would look like.
+#
+# We read this out of the LOGS, not the filesystem. Two dead ends were tried
+# first, and both are worth knowing about:
+#
+#   * ${CREDS_DIR} stays permanently EMPTY in OAuth 2.1 mode — Google tokens
+#     live Fernet-encrypted under oauth-proxy/mcp-upstream-tokens/ instead. A
+#     check that lists that directory therefore always passes, which is worse
+#     than no check at all.
+#   * Counting those upstream-token files does not work either: the key is
+#     secrets.token_urlsafe(32), i.e. one file per completed AUTHORIZATION, not
+#     per account. Connecting a second client of your own would look identical
+#     to a stranger signing in.
+#
+# The logs carry the authenticated account in plain text on every tool call, so
+# any email that is not yours is direct evidence.
+if logged=$(sudo docker logs --since 8d "$CONTAINER" 2>&1); then
+    stray=$(printf '%s' "$logged" \
+        | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
+        | sed 's/^google_//' \
+        | grep -v -F "$GOOGLE_ACCOUNT_EMAIL" \
+        | sort -u || true)
     if [ -n "$stray" ]; then
-        problems+=("UNEXPECTED credential file(s) in ${CREDS_DIR}: $(printf '%s' "$stray" | tr '\n' ' ') — someone else authorised against this endpoint. Delete the file, then consider rotating the OAuth client secret.")
+        problems+=("UNEXPECTED Google account(s) seen in ${CONTAINER} logs: $(printf '%s' "$stray" | tr '\n' ' ') — someone else completed a consent flow against this endpoint. Investigate, then consider rotating the OAuth client secret and purging oauth-proxy state.")
     fi
 else
-    problems+=("could not list ${CREDS_DIR} in container ${CONTAINER}")
+    problems+=("could not read logs for container ${CONTAINER}")
 fi
 
 # --- 4. state growth --------------------------------------------------------

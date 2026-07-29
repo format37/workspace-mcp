@@ -275,7 +275,7 @@ full 300-second callback timeout, and then exits 1 into cron mail nobody reads.
 | Restart | `docker compose -f docker-compose.vps.yml restart` is safe: disk-backed OAuth state means clients reconnect without re-auth. If it exits 1 with no log output, that is upstream #946 — the pre-flight port bind raced a lingering listener, and `restart: unless-stopped` recovers on its own. Prefer `up -d --force-recreate` over rapid restart loops. |
 | Upgrade | Bump the tag **and digest** in `docker-compose.vps.yml`, read the upstream release notes, `pull && up -d`. Roll back by restoring the previous pin. Never use `:latest` or `:main` — both track the default branch, not the release. |
 | Backup | The `store_creds` volume holds a **live Google refresh token**. Treat the tarball exactly like `.env`: outside the git clone, mode 0600, encrypted copy off the box. Losing the volume costs one re-auth per client, not data. Losing `.env` costs a new client secret from Google. |
-| Signing-key loss | Not graceful. Old ciphertext in `store_creds/oauth-proxy/` stops decrypting and `/authorize` + `/token` return 500s rather than prompting for re-auth. Fix: stop the container, empty that directory only, start, re-auth each client once. `store_creds/google/` is a different layer and survives. |
+| Signing-key loss | Not graceful, and more expensive than it looks. Old ciphertext in `store_creds/oauth-proxy/` stops decrypting and `/authorize` + `/token` return 500s rather than prompting for re-auth. Fix: stop the container, empty that directory, start, re-authorise every client. Note this **also destroys the stored Google tokens**, which live in that same directory in OAuth 2.1 mode — so it is a full Google re-consent, not just an MCP-layer reconnect. |
 | State purge | Same procedure — also the answer to registration spam, since client registrations are persisted without a TTL. It is cheap: claude.ai re-registers on every fresh connect. |
 | Connector won't add | Check `/mcp` returns 401 **with** `WWW-Authenticate`; check both well-known URLs answer in under 10 s; watch `docker logs` for `/register` and `/authorize` during the attempt. claude.ai errors carry an `ofid_` reference for [anthropics/claude-ai-mcp](https://github.com/anthropics/claude-ai-mcp/issues). |
 | Token lifetimes | Published-app refresh tokens do not expire on a clock, but they are revoked after 6 months unused (any use resets it), and there is a cap of 100 live refresh tokens per client per account. Google also auto-deletes OAuth **clients** left idle 6 months, after a 30-day email warning. |
@@ -299,8 +299,8 @@ files. Some things worth knowing before you deploy this:
   tools against **their own** data — not yours; session-to-account binding is
   enforced. The cost to you is real but bounded: it burns unverified-app grant
   slots, attributes API traffic to your Google Cloud project, and leaves
-  credential files behind. That last one is exactly what the deadman check
-  looks for.
+  log noise. The deadman check looks for exactly this, by scanning the
+  container logs for an authenticated account that is not yours.
 
 - **Consent phishing is the vector the allowlist cannot close.** Someone can add
   your server as a connector on *their* Claude account and send you the
@@ -317,9 +317,13 @@ files. Some things worth knowing before you deploy this:
   **"Only if the sender is known"**. The skill also instructs the model to treat
   event and task text as data rather than instructions.
 
-- **Stored Google credentials are plaintext JSON** on the volume, protected by
-  file permissions and a non-root container user. Fine for a single-operator
-  box; know that it is true.
+- **Stored Google credentials are Fernet-encrypted**, not plaintext, in
+  OAuth 2.1 mode: they live under `store_creds/oauth-proxy/mcp-upstream-tokens/`
+  with a key derived from your JWT signing key. (Upstream docs describe a
+  plaintext per-account JSON store — that is the *legacy* auth mode. The
+  credentials directory stays empty here.) Two consequences: the volume backup
+  is useless without `.env`, and the signing-key recovery below costs a full
+  Google re-consent, not just an MCP-layer one.
 
 - **Reminders are not private to your phone.** They are ordinary events on your
   primary calendar, so every client connected to that Google account sees them
