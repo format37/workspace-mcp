@@ -102,7 +102,11 @@ fi
 #
 # The logs carry the authenticated account in plain text on every tool call, so
 # any email that is not yours is direct evidence.
-if logged=$(sudo docker logs --since 8d "$CONTAINER" 2>&1); then
+# 192h, not "8d": docker parses --since as a Go duration, and Go durations have
+# no day unit — "8d" is rejected outright. The failure is quiet in the sense
+# that the check simply reports it cannot read logs, so it fails safe, but it
+# would have reported that every week forever.
+if logged=$(sudo docker logs --since 192h "$CONTAINER" 2>&1); then
     stray=$(printf '%s' "$logged" \
         | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' \
         | sed 's/^google_//' \
