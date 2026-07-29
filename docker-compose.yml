@@ -1,0 +1,54 @@
+# workspace-mcp — LOCAL deployment (dev machine).
+#
+# Same image and same OAuth 2.1 mode as the VPS, on 127.0.0.1:8020. Its purpose
+# is to prove the Google Cloud client, the consent flow, the tool surface and
+# the actual phone notification BEFORE any of it touches the VPS.
+#
+#   cp .env.example .env && chmod 600 .env
+#   # set WORKSPACE_EXTERNAL_URL=http://localhost:8020 in .env
+#   docker compose up -d
+#   curl -s http://localhost:8020/health
+#
+# The Google client needs http://localhost:8020/oauth2callback in its authorised
+# redirect URIs. Plain-http OAuth is fine here: localhost is exempt from
+# Google's HTTPS requirement and the MCP client SDKs allowlist localhost
+# issuers. (OAUTHLIB_INSECURE_TRANSPORT is a legacy-mode variable and does
+# nothing under OAuth 2.1 — do not add it and assume it helped.)
+#
+# When you are done, `docker compose down` and delete the local .env: it is a
+# second copy of the client secret.
+services:
+  mcp-workspace:
+    image: ghcr.io/taylorwilsdon/google_workspace_mcp:1.22.2@sha256:c8710e1cf519f6adf024f1f8a42b51d2187600d486455e4c6a0c3e1b7fd8f97b
+    container_name: mcp-workspace-local
+    env_file: .env
+    environment:
+      - PORT=8020
+      - TZ=UTC
+      - WORKSPACE_MCP_HOST=0.0.0.0
+      - MCP_ENABLE_OAUTH21=true
+      - TOOLS=calendar tasks
+      - TOOL_TIER=core
+      # Claude Code registers with an ephemeral loopback redirect. The
+      # claude.ai entries are harmless locally and keep the two files honest
+      # about each other.
+      - WORKSPACE_MCP_ALLOWED_CLIENT_REDIRECT_URIS=https://claude.ai/api/mcp/auth_callback,https://claude.com/api/mcp/auth_callback,http://localhost:*/callback,http://127.0.0.1:*/callback
+      - OAUTH_ALLOWED_ORIGINS=https://claude.ai,https://claude.com
+      - WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=disk
+      - WORKSPACE_MCP_OAUTH_PROXY_DISK_DIRECTORY=/app/store_creds/oauth-proxy
+      - WORKSPACE_MCP_CREDENTIALS_DIR=/app/store_creds/google
+    ports:
+      # Loopback only — this endpoint holds a live Google refresh token and has
+      # no business being reachable from the LAN.
+      - "127.0.0.1:8020:8020"
+    volumes:
+      - store_creds_local:/app/store_creds
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+volumes:
+  store_creds_local:

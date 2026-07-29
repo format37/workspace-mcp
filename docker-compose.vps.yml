@@ -1,0 +1,101 @@
+# workspace-mcp — VPS deployment.
+#
+# Upstream taylorwilsdon/google_workspace_mcp, deployed as-is from the official
+# image. No application code lives in this repo; upgrades are a tag bump.
+#
+# Sits behind a Caddy reverse proxy on a shared Docker network, so NO host port
+# is published — `expose` only. That is also the cheapest mitigation for
+# upstream issue #946: the server does an unguarded pre-flight bind and exits 1
+# with no log line if the port is still held, and a host port lingers in
+# TIME_WAIT far more readily than a container-network one.
+#
+# Deploy:
+#   docker network create mcp-shared        # once, shared with the other MCPs
+#   cp .env.example .env && chmod 600 .env  # then fill it in ON THIS MACHINE
+#   docker compose -f docker-compose.vps.yml pull
+#   docker compose -f docker-compose.vps.yml up -d
+#
+# Then add the Caddy site block from caddy/site-block.md and reload Caddy.
+services:
+  mcp-workspace:
+    # PINNED. Do not use :latest or :main — both track the default branch, not
+    # the release, and move under you on every upstream push. The digest is the
+    # 1.22.2 multi-arch index (linux/amd64 + linux/arm64).
+    #
+    # 1.22.2 is a HARD MINIMUM, not a preference: OAuth 2.1 proxy sessions were
+    # built with refresh_token=None before it (upstream #886/#775, fixed by
+    # #942), which forces a full re-auth roughly every hour — exactly the
+    # failure a claude.ai connector would hit daily.
+    image: ghcr.io/taylorwilsdon/google_workspace_mcp:1.22.2@sha256:c8710e1cf519f6adf024f1f8a42b51d2187600d486455e4c6a0c3e1b7fd8f97b
+    container_name: mcp-workspace
+    env_file: .env            # client id/secret, JWT key, WORKSPACE_EXTERNAL_URL
+    environment:
+      # Listen port. MUST be PORT: the image's HEALTHCHECK curls
+      # ${PORT:-8000}/health, so a WORKSPACE_MCP_PORT-only override yields a
+      # working server that Docker reports as unhealthy forever.
+      - PORT=8020
+      # Container clock. Irrelevant to reminder timing — every event carries its
+      # own IANA timezone — but keeps logs comparable with the host.
+      - TZ=UTC
+      - WORKSPACE_MCP_HOST=0.0.0.0
+
+      # OAuth 2.1. Only the literal "true" counts; "1"/"yes" silently mean false.
+      - MCP_ENABLE_OAUTH21=true
+
+      # Tool surface: 6 tools. TOOLS is read by the image's `sh -c` entrypoint
+      # and word-split UNQUOTED, so it must be SPACE-separated.
+      #   calendar core -> list_calendars, get_events, manage_event
+      #   tasks    core -> get_task, list_tasks, manage_task
+      # Tiering is opt-in: with TOOL_TIER unset, every tool of the named
+      # services registers.
+      - TOOLS=calendar tasks
+      - TOOL_TIER=core
+
+      # Dynamic-client-registration redirect allowlist. Without it the server
+      # accepts any redirect URI a registering client asks for.
+      - WORKSPACE_MCP_ALLOWED_CLIENT_REDIRECT_URIS=https://claude.ai/api/mcp/auth_callback,https://claude.com/api/mcp/auth_callback,http://localhost:*/callback,http://127.0.0.1:*/callback
+
+      # Origin-validation allowlist. Requests without an Origin header always
+      # pass (that is ordinary MCP server-to-server traffic); a request carrying
+      # an unrecognised Origin gets a 403 — including CORS preflights from
+      # Claude's browser side. WORKSPACE_EXTERNAL_URL is trusted implicitly;
+      # these two are not.
+      - OAUTH_ALLOWED_ORIGINS=https://claude.ai,https://claude.com
+
+      # Persistent state, both on the named volume below.
+      #   oauth-proxy/ — registered clients + sessions, Fernet-encrypted with a
+      #                  key derived from the JWT signing key. Without an
+      #                  explicit backend AND directory this is in-memory (or
+      #                  lands in the container's home dir), and every restart
+      #                  silently logs out every client — upstream #899.
+      #   google/      — Google refresh tokens, plaintext JSON, 0600, one file
+      #                  per authorised account. Kept in its own subdirectory so
+      #                  the stray-account check in examples/deadman-check.sh
+      #                  can just list it.
+      - WORKSPACE_MCP_OAUTH_PROXY_STORAGE_BACKEND=disk
+      - WORKSPACE_MCP_OAUTH_PROXY_DISK_DIRECTORY=/app/store_creds/oauth-proxy
+      - WORKSPACE_MCP_CREDENTIALS_DIR=/app/store_creds/google
+    expose:
+      - "8020"
+    volumes:
+      # Named volume, not a bind mount: the image runs as a non-root user whose
+      # uid is not pinned in the Dockerfile, so a host directory would very
+      # likely be unwritable — and the server exits at startup when it cannot
+      # write its credentials directory.
+      - store_creds:/app/store_creds
+    networks:
+      - default
+      - mcp-shared
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+volumes:
+  store_creds:
+
+networks:
+  mcp-shared:
+    external: true
