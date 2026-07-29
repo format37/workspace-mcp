@@ -1,6 +1,6 @@
 ---
 name: reminders
-description: Create, query, reschedule and cancel reminders and todos that surface as native notifications on a phone, via Google Calendar and Google Tasks through the workspace-mcp server. Triggers are semantic and apply in ANY language the user writes in, not only these words. English - remind me, ping me, buzz me, nudge me, wake me, set an alarm, don't let me forget, follow up on, put it on my calendar, add a todo, what's on my plate, what did you schedule. Russian - напомни, напоминай, не забудь, не дай забыть, надо не забыть, разбуди, поставь будильник, пни меня, тыкни меня, дёрни меня, скажи мне в, добавь в список, запиши, что у меня сегодня. Also fires on verbless scheduling statements that pair a time with a topic ("завтра в 10 - созвон с юристом"), on impersonal statements of need ("нужно не забыть оплатить счёт до пятницы"), and before answering "what am I supposed to do today" style questions, since agent-created items live in the calendar and task list rather than in this conversation.
+description: Create, query, reschedule and cancel reminders and todos that surface as native notifications on a phone, via Google Calendar and Google Tasks through the workspace-mcp server. Triggers are semantic and apply in ANY language the user writes in, not only these words. English - remind me, ping me, buzz me, nudge me, wake me, set an alarm, don't let me forget, follow up on, put it on my calendar, add a todo, what's on my plate, what did you schedule. Russian - напомни, напоминай, не забудь, не дай забыть, надо не забыть, разбуди, поставь будильник, пни меня, тыкни меня, дёрни меня, скажи мне в, добавь в список, запиши, что у меня сегодня. Also use before answering "what am I supposed to do today" style questions, since agent-created items live in the calendar and task list rather than in this conversation.
 ---
 
 # reminders
@@ -42,31 +42,15 @@ a time never produces a timed notification. So:
   is `remind me`. So are `пни`, `тыкни`, `дёрни`, `не забудь`, `разбуди`,
   `поставь будильник`. A rule written in English does not stop applying because
   the user typed Russian.
-- **Verbless and impersonal forms count.** "завтра в 10 — созвон с юристом"
-  pairs a time with a topic: that is a scheduling request. "нужно не забыть
-  оплатить счёт до пятницы" is a request, not thinking aloud — and a deadline
-  becomes a timed event *before* the deadline.
-- **Alarms are events.** "поставь будильник на 7:30" → a 07:30 event with
-  popup 0. Never decline it as an unsupported device feature. Do say it is a
-  Calendar notification rather than a system alarm, so it will not sound
-  through silent mode.
 - **Anything repeating is an event** by construction — tasks cannot recur.
 - **When it is unclear, create the event.** A wrong buzz is a minor annoyance;
   a missing buzz is the total failure of this system.
 - Create a task **only when the user explicitly opts out of the interruption**
-  in that same message ("добавь в список", "just a todo", "без уведомления").
-  That override covers that one item, not the conversation.
+  ("just a todo", "добавь в список"). A question — "напомни, что у меня
+  завтра" — is a read, not a create: call `get_events` / `list_tasks`.
 - Needs both? Create both, and mention the other in each one's context block.
-
-**Counter-case — do not over-fire.** `напомни, что...` followed by a *question*
-is a read, not a create: "напомни, что у меня завтра по календарю" → call
-`get_events` and `list_tasks` and answer. The test is what follows the verb —
-an infinitive or a time means create; a question word means read.
-
-**Never end a turn with a question and no object.** These arrive from a phone
-and the user walks away. Create the item at a stated default, echo the resolved
-absolute date and time, and offer to change it. Asking is fine *after* the
-thing exists.
+- **Don't end a turn with a question and no object.** Create at a sensible
+  default, state the resolved absolute date and time, then offer to change it.
 
 ## Reminder (the buzz)
 
